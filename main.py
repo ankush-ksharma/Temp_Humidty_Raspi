@@ -3,7 +3,7 @@ import threading
 import logging
 from datetime import datetime
 
-from sensors.dht22_sensor import DHT22Sensor
+from sensors.dht22_sensor import DHT22SensorProduction as DHT22Sensor
 from display.oled_display import OLEDDisplay
 from storage.data_logger import DataLogger
 from stats.daily_stats import DailyStats

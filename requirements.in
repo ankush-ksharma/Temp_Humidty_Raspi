@@ -6,3 +6,4 @@ RPi.GPIO
 flask
 python-dotenv
 requests
+pigpio-dht
