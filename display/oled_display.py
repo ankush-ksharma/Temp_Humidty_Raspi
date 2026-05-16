@@ -374,11 +374,7 @@ class OLEDDisplay:
 
             return
 
-        # Last 6 hours trend (first 25% vs last value for smoother trend)
-        recent_count = max(1, len(temp_data) // 4)
-        temp_6h_start = sum(temp_data[:recent_count]) / recent_count
         temp_end = temp_data[-1]
-        hum_6h_start = sum(hum_data[:recent_count]) / recent_count
         hum_end = hum_data[-1]
 
         # Day trend (first 10% vs last value)
@@ -386,63 +382,33 @@ class OLEDDisplay:
         temp_day_start = sum(temp_data[:day_count]) / day_count
         hum_day_start = sum(hum_data[:day_count]) / day_count
 
-        # Draw "Last 6 Hours:" header
+        # Draw "Today:" header
         self.draw.text(
-            (4 + self.pixel_shift, 12),
-            "Last 6 Hours:",
-            font=self.small_font,
-            fill=255
-        )
-
-        # Temperature trend with arrow (6 hours)
-        temp_arrow = "→" if abs(temp_end - temp_6h_start) < 0.3 else ("↗" if temp_end > temp_6h_start else "↘")
-        temp_trend = f" T: {temp_6h_start:.1f} {temp_arrow} {temp_end:.1f}°C"
-        
-        self.draw.text(
-            (6 + self.pixel_shift, 21),
-            temp_trend,
-            font=self.small_font,
-            fill=255
-        )
-
-        # Humidity trend with arrow (6 hours)
-        hum_arrow = "→" if abs(hum_end - hum_6h_start) < 2 else ("↗" if hum_end > hum_6h_start else "↘")
-        hum_trend = f" H: {hum_6h_start:.0f} {hum_arrow} {hum_end:.0f}%"
-        
-        self.draw.text(
-            (6 + self.pixel_shift, 30),
-            hum_trend,
-            font=self.small_font,
-            fill=255
-        )
-
-        # Draw "Day:" header
-        self.draw.text(
-            (4 + self.pixel_shift, 40),
-            "Day:",
+            (4 + self.pixel_shift, 14),
+            "Today:",
             font=self.small_font,
             fill=255
         )
 
         # Day temperature trend with arrow
         temp_day_arrow = "→" if abs(temp_end - temp_day_start) < 0.3 else ("↗" if temp_end > temp_day_start else "↘")
-        temp_day_trend = f" T: {temp_day_start:.1f} {temp_day_arrow} {temp_end:.1f}°C"
+        temp_day_trend = f"T: {temp_day_start:.1f} {temp_day_arrow} {temp_end:.1f}°C"
         
         self.draw.text(
-            (6 + self.pixel_shift, 49),
+            (4 + self.pixel_shift, 28),
             temp_day_trend,
-            font=self.small_font,
+            font=self.medium_font,
             fill=255
         )
 
         # Day humidity trend with arrow
         hum_day_arrow = "→" if abs(hum_end - hum_day_start) < 2 else ("↗" if hum_end > hum_day_start else "↘")
-        hum_day_trend = f" H: {hum_day_start:.0f} {hum_day_arrow} {hum_end:.0f}%"
+        hum_day_trend = f"H: {hum_day_start:.0f} {hum_day_arrow} {hum_end:.0f}%"
         
         self.draw.text(
-            (6 + self.pixel_shift, 56),
+            (4 + self.pixel_shift, 46),
             hum_day_trend,
-            font=self.small_font,
+            font=self.medium_font,
             fill=255
         )
 

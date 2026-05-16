@@ -27,9 +27,9 @@ class DHT22Sensor:
         self.last_temp = None
         self.last_humidity = None
 
-        # Sensor warm-up
+        # Sensor warm-up - DHT22 needs more time to stabilize
         print("Initializing DHT22 sensor...")
-        time.sleep(2)
+        time.sleep(3)
 
         # Initial baseline acquisition
         self._initialize_baseline()
@@ -38,48 +38,62 @@ class DHT22Sensor:
         """
         Get the first valid reading so EMA has a baseline.
         """
-        for attempt in range(10):
-            reading = self._raw_read()
+        for attempt in range(15):  # Increased attempts
+            try:
+                reading = self._raw_read()
 
-            if reading is not None:
-                self.last_temp = reading["temperature"]
-                self.last_humidity = reading["humidity"]
+                if reading is not None:
+                    self.last_temp = reading["temperature"]
+                    self.last_humidity = reading["humidity"]
 
-                print(
-                    f"Baseline established: "
-                    f"{self.last_temp:.1f}°C, "
-                    f"{self.last_humidity:.1f}%"
-                )
-                return
+                    print(
+                        f"✓ Baseline established: "
+                        f"{self.last_temp:.1f}°C, "
+                        f"{self.last_humidity:.1f}%"
+                    )
+                    return
 
-            print(f"Baseline attempt {attempt + 1}/10 failed")
-            time.sleep(2)
+                print(f"Baseline attempt {attempt + 1}/15 failed - no valid reading")
+            except Exception as e:
+                print(f"Baseline attempt {attempt + 1}/15 failed - {type(e).__name__}: {e}")
+            
+            # DHT22 requires minimum 2 seconds between reads, use 3 for safety
+            time.sleep(3)
 
-        raise RuntimeError("Failed to initialize DHT22 sensor")
+        # If we still can't get a reading, provide helpful error message
+        raise RuntimeError(
+            "Failed to initialize DHT22 sensor after 15 attempts. "
+            "Check: 1) Sensor connections (VCC, GND, DATA to GPIO4), "
+            "2) Pull-up resistor (4.7K-10K ohm), "
+            "3) GPIO permissions, "
+            "4) Sensor hardware"
+        )
 
     def _raw_read(self):
         """
         Perform a single validated sensor read with retries.
         """
-        for _ in range(self.max_retries):
+        for retry in range(self.max_retries):
             try:
                 temperature = self.sensor.temperature
                 humidity = self.sensor.humidity
 
                 # Validate sensor returned data
                 if temperature is None or humidity is None:
-                    time.sleep(0.2)
+                    if retry == self.max_retries - 1:
+                        print(f"  → Sensor returned None (retry {retry + 1}/{self.max_retries})")
+                    time.sleep(0.5)  # Increased from 0.2s
                     continue
 
                 # Hard sanity checks
                 if not (-40 <= temperature <= 80):
-                    print(f"Rejected invalid temperature: {temperature}")
-                    time.sleep(0.2)
+                    print(f"  → Rejected invalid temperature: {temperature}°C")
+                    time.sleep(0.5)
                     continue
 
                 if not (0 <= humidity <= 100):
-                    print(f"Rejected invalid humidity: {humidity}")
-                    time.sleep(0.2)
+                    print(f"  → Rejected invalid humidity: {humidity}%")
+                    time.sleep(0.5)
                     continue
 
                 return {
@@ -87,13 +101,15 @@ class DHT22Sensor:
                     "humidity": float(humidity)
                 }
 
-            except RuntimeError:
-                # Common transient DHT errors
-                time.sleep(0.2)
+            except RuntimeError as e:
+                # Common transient DHT errors (checksum, timeout)
+                if retry == self.max_retries - 1:
+                    print(f"  → DHT22 RuntimeError: {e}")
+                time.sleep(0.5)
 
             except Exception as error:
-                print(f"Unexpected sensor error: {error}")
-                time.sleep(0.2)
+                print(f"  → Unexpected sensor error: {type(error).__name__}: {error}")
+                time.sleep(0.5)
 
         return None
 
