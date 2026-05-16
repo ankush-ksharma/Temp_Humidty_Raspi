@@ -51,7 +51,7 @@ class OLEDDisplay:
         self.last_update_time = 0
 
         self.current_page = 0
-        self.total_pages = 4
+        self.total_pages = 5
 
         self.pixel_shift = 0
         self.last_shift_time = time.time()
@@ -346,6 +346,107 @@ class OLEDDisplay:
         )
 
     # =====================================================
+    # PAGE: TRENDS
+    # =====================================================
+
+    def _draw_page_trends(self, historical_data):
+
+        if not historical_data:
+
+            self._draw_centered_text(
+                "No Data",
+                28,
+                self.medium_font
+            )
+
+            return
+
+        temp_data = historical_data.get('temperature', [])
+        hum_data = historical_data.get('humidity', [])
+
+        if not temp_data or not hum_data:
+
+            self._draw_centered_text(
+                "No Data",
+                28,
+                self.medium_font
+            )
+
+            return
+
+        # Last 6 hours trend (first 25% vs last value for smoother trend)
+        recent_count = max(1, len(temp_data) // 4)
+        temp_6h_start = sum(temp_data[:recent_count]) / recent_count
+        temp_end = temp_data[-1]
+        hum_6h_start = sum(hum_data[:recent_count]) / recent_count
+        hum_end = hum_data[-1]
+
+        # Day trend (first 10% vs last value)
+        day_count = max(1, len(temp_data) // 10)
+        temp_day_start = sum(temp_data[:day_count]) / day_count
+        hum_day_start = sum(hum_data[:day_count]) / day_count
+
+        # Draw "Last 6 Hours:" header
+        self.draw.text(
+            (4 + self.pixel_shift, 12),
+            "Last 6 Hours:",
+            font=self.small_font,
+            fill=255
+        )
+
+        # Temperature trend with arrow (6 hours)
+        temp_arrow = "→" if abs(temp_end - temp_6h_start) < 0.3 else ("↗" if temp_end > temp_6h_start else "↘")
+        temp_trend = f" T: {temp_6h_start:.1f} {temp_arrow} {temp_end:.1f}°C"
+        
+        self.draw.text(
+            (6 + self.pixel_shift, 21),
+            temp_trend,
+            font=self.small_font,
+            fill=255
+        )
+
+        # Humidity trend with arrow (6 hours)
+        hum_arrow = "→" if abs(hum_end - hum_6h_start) < 2 else ("↗" if hum_end > hum_6h_start else "↘")
+        hum_trend = f" H: {hum_6h_start:.0f} {hum_arrow} {hum_end:.0f}%"
+        
+        self.draw.text(
+            (6 + self.pixel_shift, 30),
+            hum_trend,
+            font=self.small_font,
+            fill=255
+        )
+
+        # Draw "Day:" header
+        self.draw.text(
+            (4 + self.pixel_shift, 40),
+            "Day:",
+            font=self.small_font,
+            fill=255
+        )
+
+        # Day temperature trend with arrow
+        temp_day_arrow = "→" if abs(temp_end - temp_day_start) < 0.3 else ("↗" if temp_end > temp_day_start else "↘")
+        temp_day_trend = f" T: {temp_day_start:.1f} {temp_day_arrow} {temp_end:.1f}°C"
+        
+        self.draw.text(
+            (6 + self.pixel_shift, 49),
+            temp_day_trend,
+            font=self.small_font,
+            fill=255
+        )
+
+        # Day humidity trend with arrow
+        hum_day_arrow = "→" if abs(hum_end - hum_day_start) < 2 else ("↗" if hum_end > hum_day_start else "↘")
+        hum_day_trend = f" H: {hum_day_start:.0f} {hum_day_arrow} {hum_end:.0f}%"
+        
+        self.draw.text(
+            (6 + self.pixel_shift, 56),
+            hum_day_trend,
+            font=self.small_font,
+            fill=255
+        )
+
+    # =====================================================
     # PAGE: STATS
     # =====================================================
 
@@ -500,8 +601,9 @@ class OLEDDisplay:
         page_titles = {
             0: "Current",
             1: "Comfort",
-            2: "Stats",
-            3: "Notes"
+            2: "Trends",
+            3: "Stats",
+            4: "Notes"
         }
 
         self._draw_header(
@@ -527,11 +629,17 @@ class OLEDDisplay:
 
             elif page == 2:
 
+                self._draw_page_trends(
+                    historical_data
+                )
+
+            elif page == 3:
+
                 self._draw_page_stats(
                     stats
                 )
 
-            elif page == 3:
+            elif page == 4:
 
                 self._draw_page_notes(
                     notes

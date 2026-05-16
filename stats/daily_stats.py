@@ -29,24 +29,34 @@ class DailyStats:
         temperatures = []
         humidities = []
 
-        with open(filename, "r") as csvfile:
-            reader = csv.DictReader(csvfile)
+        try:
+            with open(filename, "r") as csvfile:
+                reader = csv.DictReader(csvfile)
 
-            for row in reader:
-                temperatures.append(
-                    float(row["temperature"])
-                )
+                for row in reader:
+                    try:
+                        temperatures.append(
+                            float(row["temperature"])
+                        )
 
-                humidities.append(
-                    float(row["humidity"])
-                )
+                        humidities.append(
+                            float(row["humidity"])
+                        )
+                    except (ValueError, KeyError):
+                        # Skip rows with invalid or missing data
+                        continue
 
-        if not temperatures:
+            if not temperatures:
+                return None
+
+            return {
+                "temp_min": min(temperatures),
+                "temp_max": max(temperatures),
+                "hum_min": min(humidities),
+                "hum_max": max(humidities)
+            }
+        
+        except Exception as e:
+            # Log error but don't crash - return None
+            print(f"Error reading stats: {e}")
             return None
-
-        return {
-            "temp_min": min(temperatures),
-            "temp_max": max(temperatures),
-            "hum_min": min(humidities),
-            "hum_max": max(humidities)
-        }
