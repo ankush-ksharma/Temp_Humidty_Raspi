@@ -1,0 +1,8 @@
+adafruit-blinka
+adafruit-circuitpython-dht
+adafruit-circuitpython-ssd1306
+pillow
+RPi.GPIO
+flask
+python-dotenv
+requests

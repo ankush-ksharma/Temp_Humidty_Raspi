@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Environmental Monitor Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌡️ Environmental Monitor</h1>
+            <nav>
+                <a href="/" class="active">Dashboard</a>
+                <a href="/history">History</a>
+                <a href="/notes">Notes</a>
+                <a href="/api/docs">API</a>
+            </nav>
+        </header>
+
+        <main>
+            <div class="status-indicator">
+                <span id="status-dot" class="dot"></span>
+                <span id="status-text">Connecting...</span>
+                <span id="last-update"></span>
+            </div>
+
+            <div class="cards">
+                <!-- Temperature Card -->
+                <div class="card">
+                    <div class="card-icon">🌡️</div>
+                    <div class="card-content">
+                        <h3>Temperature</h3>
+                        <div class="value" id="temperature">--</div>
+                        <div class="unit">°C</div>
+                    </div>
+                </div>
+
+                <!-- Humidity Card -->
+                <div class="card">
+                    <div class="card-icon">💧</div>
+                    <div class="card-content">
+                        <h3>Humidity</h3>
+                        <div class="value" id="humidity">--</div>
+                        <div class="unit">%</div>
+                    </div>
+                </div>
+
+                <!-- Heat Index Card -->
+                <div class="card">
+                    <div class="card-icon">🔥</div>
+                    <div class="card-content">
+                        <h3>Feels Like</h3>
+                        <div class="value" id="heat-index">--</div>
+                        <div class="unit">°C</div>
+                    </div>
+                </div>
+
+                <!-- Dew Point Card -->
+                <div class="card">
+                    <div class="card-icon">💦</div>
+                    <div class="card-content">
+                        <h3>Dew Point</h3>
+                        <div class="value" id="dew-point">--</div>
+                        <div class="unit">°C</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comfort Zone -->
+            <div class="comfort-zone">
+                <h2>Comfort Zone</h2>
+                <div class="comfort-display">
+                    <div class="comfort-icon" id="comfort-icon">☀️</div>
+                    <div class="comfort-info">
+                        <div class="comfort-zone-name" id="comfort-zone">Comfortable</div>
+                        <div class="comfort-description" id="comfort-description">Ideal conditions</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daily Statistics -->
+            <div class="stats-section">
+                <h2>Today's Statistics</h2>
+                <div class="stats-grid" id="stats-grid">
+                    <div class="stat">
+                        <span class="stat-label">Temperature Range</span>
+                        <span class="stat-value" id="temp-range">-- to --</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Humidity Range</span>
+                        <span class="stat-value" id="hum-range">-- to --</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Smart Temperature & Humidity Monitor | Updates every 10 seconds</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+</body>
+</html>

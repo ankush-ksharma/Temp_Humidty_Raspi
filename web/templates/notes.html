@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Notes - Environmental Monitor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .notes-container {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .notes-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .notes-header h2 {
+            margin: 0;
+            color: #495057;
+        }
+
+        .notes-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-edit {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-edit:hover {
+            background: #218838;
+        }
+
+        .notes-display {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            min-height: 300px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            color: #495057;
+            font-size: 1rem;
+        }
+
+        .notes-display.empty {
+            color: #adb5bd;
+            font-style: italic;
+        }
+
+        .notes-editor {
+            display: none;
+        }
+
+        .notes-editor.active {
+            display: block;
+        }
+
+        .notes-textarea {
+            width: 100%;
+            min-height: 400px;
+            padding: 20px;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 1rem;
+            line-height: 1.8;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        .notes-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .save-status {
+            margin-top: 15px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            display: none;
+            font-weight: 500;
+        }
+
+        .save-status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .save-status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .save-status.show {
+            display: block;
+        }
+
+        .notes-help {
+            background: #e7f3ff;
+            border-left: 4px solid #0066cc;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .notes-help h3 {
+            margin-top: 0;
+            color: #0066cc;
+            font-size: 1.1rem;
+        }
+
+        .notes-help ul {
+            margin: 10px 0 0 20px;
+            color: #495057;
+        }
+
+        .notes-help ul li {
+            margin: 5px 0;
+        }
+
+        .char-counter {
+            text-align: right;
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📝 Custom Notes</h1>
+            <nav>
+                <a href="/">Dashboard</a>
+                <a href="/history">History</a>
+                <a href="/notes" class="active">Notes</a>
+                <a href="/api/docs">API</a>
+            </nav>
+        </header>
+
+        <main>
+            <div class="notes-help">
+                <h3>💡 What can you use this for?</h3>
+                <ul>
+                    <li><strong>Location info:</strong> Where the sensor is placed, installation date</li>
+                    <li><strong>Calibration notes:</strong> Sensor adjustments or offset values</li>
+                    <li><strong>Maintenance log:</strong> When you cleaned the sensor, battery changes</li>
+                    <li><strong>Threshold reminders:</strong> Ideal temperature/humidity ranges for your room</li>
+                    <li><strong>Observations:</strong> Patterns you've noticed, correlations with weather</li>
+                    <li><strong>TODO list:</strong> Planned upgrades or improvements</li>
+                </ul>
+            </div>
+
+            <div class="notes-container">
+                <div class="notes-header">
+                    <h2>Your Notes</h2>
+                    <div class="notes-actions">
+                        <button class="btn btn-edit" id="editBtn" onclick="toggleEditMode()">✏️ Edit</button>
+                    </div>
+                </div>
+
+                <!-- Display Mode -->
+                <div id="displayMode" class="notes-display-container">
+                    <div id="notesDisplay" class="notes-display {% if not notes %}empty{% endif %}">
+{% if notes %}{{ notes }}{% else %}No notes yet. Click "Edit" to add your first note!{% endif %}
+                    </div>
+                </div>
+
+                <!-- Edit Mode -->
+                <div id="editMode" class="notes-editor">
+                    <form id="notesForm" onsubmit="saveNotes(event)">
+                        <textarea 
+                            id="notesTextarea" 
+                            class="notes-textarea" 
+                            placeholder="Write your notes here...
+
+Example:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📍 Sensor Location: Living room, near window
+📅 Installed: May 15, 2026
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 Ideal Conditions:
+  • Temperature: 20-24°C
+  • Humidity: 40-60%
+
+🔧 Maintenance Log:
+  • May 15, 2026 - Initial setup
+  
+📊 Observations:
+  • Humidity spikes in morning when shower is used
+  • Temperature drops 2-3°C at night
+
+✅ TODO:
+  [ ] Set up MQTT integration
+  [ ] Create weekly report automation"
+                            oninput="updateCharCount()">{{ notes }}</textarea>
+                        <div class="char-counter" id="charCounter">0 characters</div>
+                        <div class="notes-actions" style="margin-top: 15px;">
+                            <button type="submit" class="btn btn-primary">💾 Save Notes</button>
+                            <button type="button" class="btn btn-secondary" onclick="cancelEdit()">❌ Cancel</button>
+                        </div>
+                    </form>
+                    <div id="saveStatus" class="save-status"></div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Smart Temperature & Humidity Monitor</p>
+        </footer>
+    </div>
+
+    <script>
+        function toggleEditMode() {
+            document.getElementById('displayMode').style.display = 'none';
+            document.getElementById('editMode').classList.add('active');
+            document.getElementById('editBtn').style.display = 'none';
+            updateCharCount();
+        }
+
+        function cancelEdit() {
+            document.getElementById('displayMode').style.display = 'block';
+            document.getElementById('editMode').classList.remove('active');
+            document.getElementById('editBtn').style.display = 'inline-block';
+            
+            // Reset textarea to original content
+            location.reload();
+        }
+
+        function updateCharCount() {
+            const textarea = document.getElementById('notesTextarea');
+            const counter = document.getElementById('charCounter');
+            const count = textarea.value.length;
+            counter.textContent = `${count.toLocaleString()} characters`;
+        }
+
+        async function saveNotes(event) {
+            event.preventDefault();
+            
+            const textarea = document.getElementById('notesTextarea');
+            const statusDiv = document.getElementById('saveStatus');
+            const saveBtn = event.target.querySelector('button[type="submit"]');
+            
+            // Disable button during save
+            saveBtn.disabled = true;
+            saveBtn.textContent = '💾 Saving...';
+            
+            try {
+                const formData = new FormData();
+                formData.append('notes', textarea.value);
+                
+                const response = await fetch('/notes/save', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Show success message
+                    statusDiv.className = 'save-status success show';
+                    statusDiv.textContent = '✅ ' + result.message;
+                    
+                    // Update display
+                    const notesDisplay = document.getElementById('notesDisplay');
+                    if (textarea.value.trim()) {
+                        notesDisplay.textContent = textarea.value;
+                        notesDisplay.classList.remove('empty');
+                    } else {
+                        notesDisplay.textContent = 'No notes yet. Click "Edit" to add your first note!';
+                        notesDisplay.classList.add('empty');
+                    }
+                    
+                    // Switch back to display mode after short delay
+                    setTimeout(() => {
+                        document.getElementById('displayMode').style.display = 'block';
+                        document.getElementById('editMode').classList.remove('active');
+                        document.getElementById('editBtn').style.display = 'inline-block';
+                        statusDiv.classList.remove('show');
+                    }, 1500);
+                    
+                } else {
+                    throw new Error(result.error || 'Failed to save notes');
+                }
+                
+            } catch (error) {
+                console.error('Error saving notes:', error);
+                statusDiv.className = 'save-status error show';
+                statusDiv.textContent = '❌ Error: ' + error.message;
+            } finally {
+                // Re-enable button
+                saveBtn.disabled = false;
+                saveBtn.textContent = '💾 Save Notes';
+            }
+        }
+
+        // Initialize character counter
+        document.addEventListener('DOMContentLoaded', () => {
+            updateCharCount();
+        });
+    </script>
+</body>
+</html>

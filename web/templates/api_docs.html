@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Documentation - Environmental Monitor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📚 API Documentation</h1>
+            <nav>
+                <a href="/">Dashboard</a>
+                <a href="/history">History</a>
+                <a href="/notes">Notes</a>
+                <a href="/api/docs" class="active">API</a>
+            </nav>
+        </header>
+
+        <main class="api-docs">
+            <section>
+                <h2>Overview</h2>
+                <p>RESTful API for accessing environmental sensor data. All endpoints return JSON.</p>
+            </section>
+
+            <section class="endpoint">
+                <h3>GET /api/current</h3>
+                <p>Get current sensor readings and comfort metrics.</p>
+                <div class="code-block">
+                    <pre>{
+  "timestamp": "2026-05-15T14:30:45.123456",
+  "temperature": 25.3,
+  "humidity": 55.2,
+  "sensor_healthy": true,
+  "stats": {
+    "temp_min": 22.1,
+    "temp_max": 26.5,
+    "hum_min": 50,
+    "hum_max": 65
+  },
+  "comfort_metrics": {
+    "heat_index": 25.5,
+    "dew_point": 15.3,
+    "comfort_zone": "Comfortable",
+    "comfort_icon": "☀️",
+    "comfort_description": "Ideal conditions"
+  }
+}</pre>
+                </div>
+            </section>
+
+            <section class="endpoint">
+                <h3>GET /api/history</h3>
+                <p>Get historical sensor data from CSV files.</p>
+                <h4>Query Parameters:</h4>
+                <ul>
+                    <li><code>date</code> - Date in YYYY-MM-DD format (default: today)</li>
+                    <li><code>limit</code> - Maximum number of records (default: all)</li>
+                </ul>
+                <h4>Example:</h4>
+                <div class="code-block">
+                    <pre>GET /api/history?date=2026-05-15&limit=100</pre>
+                </div>
+                <h4>Response:</h4>
+                <div class="code-block">
+                    <pre>{
+  "date": "2026-05-15",
+  "count": 100,
+  "readings": [
+    {
+      "timestamp": "2026-05-15 14:30:45",
+      "temperature": 25.32,
+      "humidity": 55.18,
+      "heat_index": 25.50,
+      "dew_point": 15.30,
+      "comfort_zone": "Comfortable"
+    }
+  ]
+}</pre>
+                </div>
+            </section>
+
+            <section class="endpoint">
+                <h3>GET /api/summary</h3>
+                <p>Get summary statistics for a date range.</p>
+                <h4>Query Parameters:</h4>
+                <ul>
+                    <li><code>start</code> - Start date YYYY-MM-DD (default: 7 days ago)</li>
+                    <li><code>end</code> - End date YYYY-MM-DD (default: today)</li>
+                </ul>
+                <h4>Example:</h4>
+                <div class="code-block">
+                    <pre>GET /api/summary?start=2026-05-10&end=2026-05-15</pre>
+                </div>
+            </section>
+
+            <section class="endpoint">
+                <h3>GET /api/health</h3>
+                <p>System health check endpoint.</p>
+                <div class="code-block">
+                    <pre>{
+  "status": "healthy",
+  "sensor_healthy": true,
+  "last_update": "2026-05-15T14:30:45.123456",
+  "data_available": true
+}</pre>
+                </div>
+            </section>
+
+            <section>
+                <h2>Web Pages</h2>
+                <p>The following web pages are available for viewing data:</p>
+                
+                <section class="endpoint">
+                    <h3>GET /</h3>
+                    <p>Live dashboard with real-time sensor readings and comfort metrics.</p>
+                </section>
+
+                <section class="endpoint">
+                    <h3>GET /history</h3>
+                    <p>Historical data visualization with interactive charts.</p>
+                </section>
+
+                <section class="endpoint">
+                    <h3>GET /notes</h3>
+                    <p>Custom notes page for adding location info, maintenance logs, observations, and TODO items.</p>
+                </section>
+
+                <section class="endpoint">
+                    <h3>POST /notes/save</h3>
+                    <p>Save custom notes (used by the Notes page form).</p>
+                    <h4>Form Data:</h4>
+                    <ul>
+                        <li><code>notes</code> - Text content to save</li>
+                    </ul>
+                    <h4>Response:</h4>
+                    <div class="code-block">
+                        <pre>{
+  "success": true,
+  "message": "Notes saved successfully"
+}</pre>
+                    </div>
+                </section>
+            </section>
+
+            <section>
+                <h2>Usage Examples</h2>
+                <h3>cURL</h3>
+                <div class="code-block">
+                    <pre># Get current readings
+curl http://localhost:5000/api/current
+
+# Get historical data
+curl http://localhost:5000/api/history?date=2026-05-15
+
+# Health check
+curl http://localhost:5000/api/health</pre>
+                </div>
+
+                <h3>JavaScript (Fetch)</h3>
+                <div class="code-block">
+                    <pre>// Get current readings
+fetch('/api/current')
+  .then(response => response.json())
+  .then(data => console.log(data));
+
+// Get historical data
+fetch('/api/history?date=2026-05-15')
+  .then(response => response.json())
+  .then(data => console.log(data));</pre>
+                </div>
+
+                <h3>Python</h3>
+                <div class="code-block">
+                    <pre>import requests
+
+# Get current readings
+response = requests.get('http://localhost:5000/api/current')
+data = response.json()
+print(data)
+
+# Get historical data
+response = requests.get('http://localhost:5000/api/history', 
+                       params={'date': '2026-05-15'})
+data = response.json()
+print(data)</pre>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Smart Temperature & Humidity Monitor</p>
+        </footer>
+    </div>
+</body>
+</html>

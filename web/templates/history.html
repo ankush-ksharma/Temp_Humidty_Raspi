@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historical Data - Environmental Monitor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Historical Data</h1>
+            <nav>
+                <a href="/">Dashboard</a>
+                <a href="/history" class="active">History</a>
+                <a href="/notes">Notes</a>
+                <a href="/api/docs">API</a>
+            </nav>
+        </header>
+
+        <main>
+            <div class="controls">
+                <h3>Quick Select</h3>
+                <div class="quick-buttons">
+                    <button onclick="selectToday()">Today</button>
+                    <button onclick="selectYesterday()">Yesterday</button>
+                    <button onclick="selectLast7Days()">Last 7 Days</button>
+                    <button onclick="selectThisMonth()">This Month</button>
+                    <button onclick="toggleCustomRange()">Custom Range</button>
+                </div>
+                
+                <div id="single-date-selector" style="margin-top: 20px;">
+                    <label for="available-dates">Select Date:</label>
+                    <select id="available-dates" onchange="loadSingleDate()">
+                        <option value="">-- Select a date --</option>
+                    </select>
+                </div>
+                
+                <div id="custom-range-selector" style="display: none; margin-top: 20px;">
+                    <label>Custom Date Range:</label>
+                    <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+                        <input type="date" id="start-date" />
+                        <span>to</span>
+                        <input type="date" id="end-date" />
+                        <button onclick="loadDateRange()">Load Range</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h2>Temperature & Humidity Over Time</h2>
+                <canvas id="mainChart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h2>Comfort Metrics</h2>
+                <canvas id="comfortChart"></canvas>
+            </div>
+
+            <div class="data-summary" id="data-summary">
+                <h3>Data Summary</h3>
+                <p>Select a date to view historical data</p>
+            </div>
+        </main>
+
+        <footer>
+            <p>Smart Temperature & Humidity Monitor</p>
+        </footer>
+    </div>
+
+    <script>
+        let mainChart = null;
+        let comfortChart = null;
+        let availableDates = [];
+        let currentMode = 'single'; // 'single' or 'range'
+
+        // Load available dates on page load
+        async function loadAvailableDates() {
+            try {
+                const response = await fetch('/api/available-dates');
+                const data = await response.json();
+                availableDates = data.dates || [];
+                
+                // Populate dropdown
+                const select = document.getElementById('available-dates');
+                select.innerHTML = '<option value="">-- Select a date --</option>';
+                
+                availableDates.forEach(date => {
+                    const option = document.createElement('option');
+                    option.value = date;
+                    option.textContent = formatDateNice(date);
+                    select.appendChild(option);
+                });
+                
+                // Set today as default if available
+                const today = new Date().toISOString().split('T')[0];
+                if (availableDates.includes(today)) {
+                    select.value = today;
+                    loadSingleDate();
+                }
+            } catch (error) {
+                console.error('Error loading available dates:', error);
+            }
+        }
+
+        function formatDateNice(dateStr) {
+            const date = new Date(dateStr + 'T00:00:00');
+            const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' };
+            return date.toLocaleDateString('en-US', options);
+        }
+
+        function selectToday() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('available-dates').value = today;
+            showSingleDateSelector();
+            loadSingleDate();
+        }
+
+        function selectYesterday() {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const dateStr = yesterday.toISOString().split('T')[0];
+            document.getElementById('available-dates').value = dateStr;
+            showSingleDateSelector();
+            loadSingleDate();
+        }
+
+        function selectLast7Days() {
+            const end = new Date();
+            const start = new Date();
+            start.setDate(start.getDate() - 7);
+            
+            document.getElementById('start-date').value = start.toISOString().split('T')[0];
+            document.getElementById('end-date').value = end.toISOString().split('T')[0];
+            showCustomRangeSelector();
+            loadDateRange();
+        }
+
+        function selectThisMonth() {
+            const now = new Date();
+            const start = new Date(now.getFullYear(), now.getMonth(), 1);
+            const end = now;
+            
+            document.getElementById('start-date').value = start.toISOString().split('T')[0];
+            document.getElementById('end-date').value = end.toISOString().split('T')[0];
+            showCustomRangeSelector();
+            loadDateRange();
+        }
+
+        function toggleCustomRange() {
+            if (currentMode === 'single') {
+                showCustomRangeSelector();
+            } else {
+                showSingleDateSelector();
+            }
+        }
+
+        function showSingleDateSelector() {
+            currentMode = 'single';
+            document.getElementById('single-date-selector').style.display = 'block';
+            document.getElementById('custom-range-selector').style.display = 'none';
+        }
+
+        function showCustomRangeSelector() {
+            currentMode = 'range';
+            document.getElementById('single-date-selector').style.display = 'none';
+            document.getElementById('custom-range-selector').style.display = 'block';
+        }
+
+        async function loadSingleDate() {
+            const select = document.getElementById('available-dates');
+            const date = select.value;
+
+            if (!date) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/history?date=${date}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to load data');
+                }
+
+                renderCharts(data.readings);
+                updateSummary(data);
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+                console.error('Error loading data:', error);
+            }
+        }
+
+        function renderCharts(readings) {
+            if (!readings || readings.length === 0) {
+                alert('No data available for selected date');
+                return;
+            }
+
+            const labels = readings.map(r => new Date(r.timestamp).toLocaleTimeString());
+            const temperatures = readings.map(r => r.temperature);
+            const humidities = readings.map(r => r.humidity);
+            const heatIndices = readings.map(r => r.heat_index || r.temperature);
+            const dewPoints = readings.map(r => r.dew_point || null);
+
+            // Main chart (Temperature & Humidity)
+            const mainCtx = document.getElementById('mainChart').getContext('2d');
+            
+            if (mainChart) mainChart.destroy();
+            
+            mainChart = new Chart(mainCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Temperature (°C)',
+                            data: temperatures,
+                            borderColor: 'rgb(255, 99, 132)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Humidity (%)',
+                            data: humidities,
+                            borderColor: 'rgb(54, 162, 235)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: { display: true, text: 'Temperature (°C)' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: { display: true, text: 'Humidity (%)' },
+                            grid: { drawOnChartArea: false }
+                        }
+                    }
+                }
+            });
+
+            // Comfort chart (Heat Index & Dew Point)
+            const comfortCtx = document.getElementById('comfortChart').getContext('2d');
+            
+            if (comfortChart) comfortChart.destroy();
+            
+            comfortChart = new Chart(comfortCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Heat Index (°C)',
+                            data: heatIndices,
+                            borderColor: 'rgb(255, 159, 64)',
+                            backgroundColor: 'rgba(255, 159, 64, 0.1)'
+                        },
+                        {
+                            label: 'Dew Point (°C)',
+                            data: dewPoints,
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.1)'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                }
+            });
+        }
+
+        function updateSummary(data) {
+            const summaryDiv = document.getElementById('data-summary');
+            const readings = data.readings;
+
+            const temps = readings.map(r => r.temperature);
+            const hums = readings.map(r => r.humidity);
+
+            const tempMin = Math.min(...temps);
+            const tempMax = Math.max(...temps);
+            const tempAvg = temps.reduce((a, b) => a + b, 0) / temps.length;
+
+            const humMin = Math.min(...hums);
+            const humMax = Math.max(...hums);
+            const humAvg = hums.reduce((a, b) => a + b, 0) / hums.length;
+
+            summaryDiv.innerHTML = `
+                <h3>Data Summary for ${data.date}</h3>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <strong>Temperature:</strong>
+                        <p>Min: ${tempMin.toFixed(1)}°C | Max: ${tempMax.toFixed(1)}°C | Avg: ${tempAvg.toFixed(1)}°C</p>
+                    </div>
+                    <div class="summary-item">
+                        <strong>Humidity:</strong>
+                        <p>Min: ${humMin.toFixed(0)}% | Max: ${humMax.toFixed(0)}% | Avg: ${humAvg.toFixed(0)}%</p>
+                    </div>
+                    <div class="summary-item">
+                        <strong>Total Readings:</strong>
+                        <p>${data.count} readings</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function loadDateRange() {
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/summary?start=${startDate}&end=${endDate}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to load data');
+                }
+
+                renderRangeSummary(data);
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+                console.error('Error loading date range:', error);
+            }
+        }
+
+        function renderRangeSummary(data) {
+            const summaries = data.summaries;
+            
+            if (!summaries || summaries.length === 0) {
+                alert('No data available for selected range');
+                return;
+            }
+
+            // Aggregate data for charts
+            const labels = summaries.map(s => s.date);
+            const tempAvgs = summaries.map(s => s.temp_avg);
+            const humAvgs = summaries.map(s => s.hum_avg);
+            const tempMaxs = summaries.map(s => s.temp_max);
+            const tempMins = summaries.map(s => s.temp_min);
+
+            // Main chart
+            const mainCtx = document.getElementById('mainChart').getContext('2d');
+            if (mainChart) mainChart.destroy();
+            
+            mainChart = new Chart(mainCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Avg Temperature (°C)',
+                            data: tempAvgs,
+                            borderColor: 'rgb(255, 99, 132)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Avg Humidity (%)',
+                            data: humAvgs,
+                            borderColor: 'rgb(54, 162, 235)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: { display: true, text: 'Temperature (°C)' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: { display: true, text: 'Humidity (%)' },
+                            grid: { drawOnChartArea: false }
+                        }
+                    }
+                }
+            });
+
+            // Summary
+            const summaryDiv = document.getElementById('data-summary');
+            const allTemps = summaries.flatMap(s => [s.temp_min, s.temp_max, s.temp_avg]);
+            const allHums = summaries.flatMap(s => [s.hum_min, s.hum_max, s.hum_avg]);
+            
+            summaryDiv.innerHTML = `
+                <h3>Summary for ${data.start_date} to ${data.end_date}</h3>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <strong>Temperature Range:</strong>
+                        <p>${Math.min(...allTemps).toFixed(1)}°C - ${Math.max(...allTemps).toFixed(1)}°C</p>
+                    </div>
+                    <div class="summary-item">
+                        <strong>Humidity Range:</strong>
+                        <p>${Math.min(...allHums).toFixed(0)}% - ${Math.max(...allHums).toFixed(0)}%</p>
+                    </div>
+                    <div class="summary-item">
+                        <strong>Days with Data:</strong>
+                        <p>${summaries.length} days</p>
+                    </div>
+                </div>
+            `;
+
+            // Clear comfort chart for range view
+            if (comfortChart) comfortChart.destroy();
+        }
+
+        // Load available dates and today's data on page load
+        window.onload = () => {
+            loadAvailableDates();
+        };
+    </script>
+</body>
+</html>
