@@ -374,42 +374,90 @@ class OLEDDisplay:
 
             return
 
-        temp_end = temp_data[-1]
-        hum_end = hum_data[-1]
-
-        # Day trend (first 10% vs last value)
-        day_count = max(1, len(temp_data) // 10)
-        temp_day_start = sum(temp_data[:day_count]) / day_count
-        hum_day_start = sum(hum_data[:day_count]) / day_count
-
-        # Draw "Today:" header
+        # Temperature label
         self.draw.text(
-            (4 + self.pixel_shift, 14),
-            "Today:",
+            (2 + self.pixel_shift, 12),
+            "Temp",
             font=self.small_font,
             fill=255
         )
 
-        # Day temperature trend with arrow
-        temp_day_arrow = "→" if abs(temp_end - temp_day_start) < 0.3 else ("↗" if temp_end > temp_day_start else "↘")
-        temp_day_trend = f"T: {temp_day_start:.1f} {temp_day_arrow} {temp_end:.1f}°C"
-        
+        # Draw temperature trend line
+        self._draw_trend_line(
+            temp_data,
+            y_start=12,
+            height=18,
+            x_offset=30
+        )
+
+        # Humidity label
         self.draw.text(
-            (4 + self.pixel_shift, 28),
-            temp_day_trend,
-            font=self.medium_font,
+            (2 + self.pixel_shift, 38),
+            "Hum",
+            font=self.small_font,
             fill=255
         )
 
-        # Day humidity trend with arrow
-        hum_day_arrow = "→" if abs(hum_end - hum_day_start) < 2 else ("↗" if hum_end > hum_day_start else "↘")
-        hum_day_trend = f"H: {hum_day_start:.0f} {hum_day_arrow} {hum_end:.0f}%"
+        # Draw humidity trend line
+        self._draw_trend_line(
+            hum_data,
+            y_start=38,
+            height=18,
+            x_offset=30
+        )
+
+    def _draw_trend_line(self, data, y_start, height, x_offset):
+        """
+        Draw a trend line graph for the given data.
+        """
+        if not data or len(data) < 2:
+            return
+
+        # Available width for graph
+        graph_width = OLED_WIDTH - x_offset - 4
+
+        # Normalize data to fit in the height
+        min_val = min(data)
+        max_val = max(data)
         
-        self.draw.text(
-            (4 + self.pixel_shift, 46),
-            hum_day_trend,
-            font=self.medium_font,
-            fill=255
+        if max_val == min_val:
+            # Flat line if no variation
+            y = y_start + height // 2
+            self.draw.line(
+                [
+                    (x_offset + self.pixel_shift, y),
+                    (OLED_WIDTH - 4 + self.pixel_shift, y)
+                ],
+                fill=255,
+                width=1
+            )
+            return
+
+        # Sample data to fit graph width (max ~90 points)
+        step = max(1, len(data) // graph_width)
+        sampled = data[::step]
+
+        # Calculate points
+        points = []
+        for i, value in enumerate(sampled):
+            x = x_offset + (i * graph_width // (len(sampled) - 1))
+            # Invert y because screen coordinates go down
+            normalized = (value - min_val) / (max_val - min_val)
+            y = y_start + height - int(normalized * height)
+            points.append((x + self.pixel_shift, y))
+
+        # Draw line connecting points
+        if len(points) > 1:
+            self.draw.line(points, fill=255, width=1)
+
+        # Draw current value
+        current_val = data[-1]
+        val_text = f"{current_val:.1f}"
+        self._draw_right_text(
+            val_text,
+            y_start + height + 2,
+            self.small_font,
+            padding=2
         )
 
     # =====================================================
