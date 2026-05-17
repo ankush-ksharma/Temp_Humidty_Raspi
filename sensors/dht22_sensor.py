@@ -49,4 +49,4 @@ if __name__ == "__main__":
             print("[ERROR] Sensor communication failed.")
             
         # Take one reading per minute
-        time.sleep(50)
+        time.sleep(45)
