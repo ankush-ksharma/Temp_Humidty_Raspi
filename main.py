@@ -3,7 +3,7 @@ import threading
 import logging
 from datetime import datetime
 
-from sensors.dht22_sensor import DHT22SensorProduction as DHT22Sensor
+from sensors.dht22_sensor import DHT22Sensor
 from display.oled_display import OLEDDisplay
 from storage.data_logger import DataLogger
 from stats.daily_stats import DailyStats
@@ -11,7 +11,6 @@ from calculations.comfort_metrics import get_comfort_metrics
 from web.app import start_web_server
 
 from config.settings import (
-    REFRESH_SECONDS,
     DISPLAY_PAGE_ROTATION_ENABLED,
     DISPLAY_PAGE_ROTATION_INTERVAL,
     DISPLAY_TOTAL_PAGES,
@@ -72,7 +71,7 @@ class SharedData:
 
 
 def sensor_worker(shared_data):
-    """Background thread that reads sensor and logs data."""
+    """Background thread that reads sensor once per minute and logs data."""
     sensor = DHT22Sensor()
     logger_inst = DataLogger()
     stats_manager = DailyStats()
@@ -124,7 +123,7 @@ def sensor_worker(shared_data):
             if consecutive_failures >= max_failures:
                 shared_data.mark_unhealthy()
 
-        time.sleep(REFRESH_SECONDS)
+        time.sleep(60)  # Take one reading per minute
 
 
 def load_notes():

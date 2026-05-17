@@ -1,123 +1,40 @@
 import time
 from pigpio_dht import DHT22
 
-class DHT22SensorProduction:
-    def __init__(
-        self,
-        gpio_pin=4,           # Broadcom (BCM) GPIO Pin number
-        alpha_temp=0.4,       # Exponential filter smoothing factors
-        alpha_humidity=0.4,
-        max_retries=5
-    ):
+class DHT22Sensor:
+    def __init__(self, gpio_pin=4):
         self.pin = gpio_pin
-        self.alpha_temp = alpha_temp
-        self.alpha_humidity = alpha_humidity
-        self.max_retries = max_retries
-
-        self.last_temp = None
-        self.last_humidity = None
-        self.last_read_time = 0.0
-
-        print(f"Initializing native hardware backend on GPIO Pin {self.pin}...")
-        
-        # Instantiate the native kernel-level driver wrapper
+        print(f"Initializing DHT22 sensor on GPIO Pin {self.pin}...")
         self.sensor = DHT22(self.pin)
         time.sleep(2.5)  # Initial physical sensor warm-up pause
 
-        self._initialize_baseline()
-
-    def _enforce_cooldown(self):
-        """
-        Guarantees the physical hardware gets at least 2.5 seconds 
-        between raw retry requests.
-        """
-        elapsed = time.time() - self.last_read_time
-        if elapsed < 2.5:
-            time.sleep(2.5 - elapsed)
-
-    def _raw_read(self):
-        """
-        Fetches fresh data directly from the system kernel pins.
-        """
-        for _ in range(self.max_retries):
-            self._enforce_cooldown()
-            self.last_read_time = time.time()
-
-            try:
-                # Read data using the new library structure
-                result = self.sensor.read()
-                
-                # Check library valid state flag
-                if result.get('valid') is True:
-                    temperature = result.get('temp_c')
-                    humidity = result.get('humidity')
-
-                    # Final validation filtering against rogue wire noise spikes
-                    if (-40 <= temperature <= 80) and (0 <= humidity <= 100):
-                        return {
-                            "temperature": float(temperature),
-                            "humidity": float(humidity)
-                        }
-            except Exception:
-                # Silently catch transient OS thread interrupts
-                pass
-
-        return None
-
-    def _initialize_baseline(self):
-        """
-        Establishes starting parameters so the mathematical filter doesn't drag up from zero.
-        """
-        print("Gathering live environmental baseline data...")
-        for attempt in range(10):
-            reading = self._raw_read()
-            if reading is not None:
-                self.last_temp = reading["temperature"]
-                self.last_humidity = reading["humidity"]
-                print(f"Baseline Verified: {self.last_temp:.1f}°C | {self.last_humidity:.1f}%")
-                return
-            print(f"Baseline sequence {attempt + 1}/10 dropped. Retrying...")
-            
-        raise RuntimeError("Fatal hardware block: Sensor completely unresponsive over the GPIO bus line.")
-
-    def _ema(self, previous, new, alpha):
-        if previous is None:
-            return new
-        return (alpha * new) + ((1 - alpha) * previous)
-
     def read(self):
         """
-        Public API method to fetch and update the smoothed ambient dataset.
+        Takes multiple readings from the sensor and returns a normalized result.
         """
-        reading = self._raw_read()
-
-        if reading is None:
-            if self.last_temp is not None and self.last_humidity is not None:
-                return {
-                    "temperature": round(self.last_temp, 1),
-                    "humidity": round(self.last_humidity, 1),
-                    "status": "cached"
-                }
-            return None
-
-        # Apply Exponential Moving Average math
-        filtered_temp = self._ema(self.last_temp, reading["temperature"], self.alpha_temp)
-        filtered_humidity = self._ema(self.last_humidity, reading["humidity"], self.alpha_humidity)
-
-        # Update cache registers
-        self.last_temp = filtered_temp
-        self.last_humidity = filtered_humidity
-
-        return {
-            "temperature": round(filtered_temp, 1),
-            "humidity": round(filtered_humidity, 1),
-            "status": "ok"
-        }
+        try:
+            result = self.sensor.sample(samples=5)
+            
+            if result and result.get('valid') is True:
+                temperature = result.get('temp_c')
+                humidity = result.get('humidity')
+                
+                # Final validation filtering
+                if (-40 <= temperature <= 80) and (0 <= humidity <= 100):
+                    return {
+                        "temperature": round(float(temperature), 1),
+                        "humidity": round(float(humidity), 1),
+                        "status": "ok"
+                    }
+        except Exception as e:
+            print(f"Error reading sensor: {e}")
+        
+        return None
 
 
 if __name__ == "__main__":
     # Point this to BCM pin 4 (Physical Pin 7 on the board)
-    sensor = DHT22SensorProduction(gpio_pin=4)
+    sensor = DHT22Sensor(gpio_pin=4)
 
     print("\nLive Monitoring Stream Online (Press Ctrl+C to exit)...")
     while True:
@@ -129,7 +46,7 @@ if __name__ == "__main__":
                 f"Humidity: {data['humidity']}%"
             )
         else:
-            print("[CRITICAL ERROR] Sensor communication dropped. Check physical connections.")
+            print("[ERROR] Sensor communication failed.")
             
-        # The requested 5-second sampling loop interval
-        time.sleep(5.0)
+        # Take one reading per minute
+        time.sleep(50)

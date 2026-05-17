@@ -395,56 +395,6 @@ Each day creates a new file, making it easy to:
 | `Display upside down` | Set `rotate=False` in OLEDDisplay initialization |
 | `Permission denied` | Run with `sudo` or add user to `gpio` and `i2c` groups |
 
-### DHT22 Sensor Initialization Failures
-
-If you see **"Failed to initialize DHT22 sensor"** errors:
-
-**1. Check Hardware Connections:**
-```bash
-# Verify GPIO pins are accessible
-gpio readall
-
-# Check if DHT22 is connected to GPIO4 (Pin 7)
-```
-
-**2. Verify Wiring:**
-- **VCC** (Red wire) → Pin 1 (3.3V)
-- **DATA** (Yellow wire) → Pin 7 (GPIO4)
-- **GND** (Black wire) → Pin 6 (Ground)
-- **Pull-up Resistor**: 4.7K-10K ohm between DATA and VCC
-
-**3. Test Sensor Manually:**
-```python
-import board
-import adafruit_dht
-import time
-
-sensor = adafruit_dht.DHT22(board.D4, use_pulseio=False)
-
-for i in range(10):
-    try:
-        temp = sensor.temperature
-        hum = sensor.humidity
-        print(f"Temp: {temp}°C, Humidity: {hum}%")
-        break
-    except Exception as e:
-        print(f"Attempt {i+1}: {e}")
-    time.sleep(3)
-```
-
-**4. Common Fixes:**
-- Ensure proper 3.3V power (not 5V on DHT22 data pin)
-- Add or replace pull-up resistor
-- Try a different GPIO pin (update `pin=board.D4` in code)
-- Replace sensor if defective
-- Add `time.sleep(2)` between program restarts
-
-**5. Run with Debugging:**
-The updated sensor code now provides detailed error messages showing:
-- Which baseline attempt failed
-- Specific error types (RuntimeError, checksum errors, etc.)
-- Invalid temperature/humidity values that were rejected
-
 ---
 
 ## License
